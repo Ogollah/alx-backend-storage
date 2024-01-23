@@ -3,28 +3,31 @@
 returns all students sorted by average score:
 """
 
-from pymongo import MongoClient
-
 
 def top_students(mongo_collection):
     """
-    Returns all students sorted by average score.
+    Returns all students in a collection sorted by average score.
 
     Args:
     - mongo_collection: pymongo collection object
 
     Returns:
-    - List of students, each with an additional key 'averageScore'.
+    - List of students with '_id', 'name', and 'averageScore'.
     """
-    students = list(mongo_collection.find())
+    pipeline = [
+        {
+            '$project': {
+                '_id': 1,
+                'name': 1,
+                'averageScore': {
+                    '$avg': '$topics.score',
+                },
+            },
+        },
+        {
+            '$sort': {'averageScore': -1},
+        },
+    ]
 
-    for student in students:
-        scores = student.get('scores', [])
-        total_score = sum(score['score'] for score in scores)
-        average_score = total_score / len(scores) if len(scores) > 0 else 0
-        student['averageScore'] = average_score
-
-    sorted_students = sorted(
-        students, key=lambda x: x['averageScore'], reverse=True)
-
-    return sorted_students
+    students = mongo_collection.aggregate(pipeline)
+    return list(students)
